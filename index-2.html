@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>കലാങ്കം 2026 — Certificate of Merit</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(135deg,#eef7ff,#fff8e7);font-family:"Noto Sans Malayalam","Nirmala UI",Arial,sans-serif;color:#12306b}
+.wrap{max-width:980px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:22px;box-shadow:0 10px 35px #0002;padding:20px}
+h1{margin:0 0 6px;text-align:center;font-size:25px}
+.sub{text-align:center;margin:0 0 18px;color:#666}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{font-weight:700;display:block;margin-bottom:6px}
+input{width:100%;padding:12px;border:1px solid #ccd5e5;border-radius:10px;font-size:16px}
+.full{grid-column:1/-1}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:0;border-radius:11px;padding:12px 17px;font-size:16px;font-weight:700;cursor:pointer}
+.primary{background:#123c91;color:white}
+.secondary{background:#eef3fb;color:#123c91}
+.preview{margin-top:20px;background:#eee;border-radius:15px;padding:10px;overflow:hidden}
+#certCanvas{width:100%;height:auto;display:block;border-radius:9px}
+.note{text-align:center;font-size:13px;color:#666;margin-top:10px}
+.modal{display:none;position:fixed;inset:0;background:#0009;z-index:10;align-items:center;justify-content:center;padding:14px}
+.modal.show{display:flex}
+.modalbox{background:#fff;border-radius:18px;padding:15px;max-width:650px;width:100%}
+.cropArea{background:#222;border-radius:10px;overflow:hidden}
+#cropCanvas{width:100%;display:block;touch-action:none}
+.cropControls{display:flex;align-items:center;gap:10px;margin:12px 0}
+.cropControls input{padding:0}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>എ യു പി സ്കൂൾ വടക്കുംപുറം</h1>
+    <p class="sub">കലാങ്കം 2026 സ്കൂൾ കലാമേള — വിജയികളുടെ Certificate of Merit</p>
+
+    <div class="grid">
+      <div class="full">
+        <label>ഫോട്ടോ</label>
+        <input id="photoInput" type="file" accept="image/*">
+      </div>
+      <div>
+        <label>Name</label>
+        <input id="name" placeholder="വിദ്യാർത്ഥിയുടെ പേര്">
+      </div>
+      <div>
+        <label>Class & Division</label>
+        <input id="classDiv" placeholder="ഉദാ: 7 A">
+      </div>
+      <div>
+        <label>Item</label>
+        <input id="item" placeholder="ഇനം">
+      </div>
+      <div>
+        <label>Place</label>
+        <input id="place" placeholder="ഉദാ: First">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="downloadBtn">⬇ Certificate Download ചെയ്യുക</button>
+      <button class="secondary" id="cropAgainBtn">✂️ Photo Crop വീണ്ടും ക്രമീകരിക്കുക</button>
+    </div>
+
+    <div class="preview">
+      <canvas id="certCanvas" width="1536" height="1024"></canvas>
+    </div>
+    <div class="note">ഫോട്ടോയും വിവരങ്ങളും ചേർത്ത ശേഷം Download അമർത്തുക. സർട്ടിഫിക്കറ്റ് PNG ആയി ലഭിക്കും.</div>
+  </div>
+</div>
+
+<div class="modal" id="cropModal">
+  <div class="modalbox">
+    <h3 style="margin:4px 0 10px">ഫോട്ടോ ക്രോപ്പ് ചെയ്യുക</h3>
+    <div class="cropArea"><canvas id="cropCanvas" width="560" height="420"></canvas></div>
+    <div class="cropControls">
+      <span>➖</span><input id="zoom" type="range" min="1" max="3" step=".01" value="1"><span>➕</span>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="cancelCrop">റദ്ദാക്കുക</button>
+      <button class="primary" id="applyCrop">✔ ശരി, ചേർക്കുക</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const bg = new Image();
+bg.src = "certificate-template.jpg";
+
+const cert = document.getElementById("certCanvas");
+const ctx = cert.getContext("2d");
+let sourceImg = null, cropped = null;
+let cropState = {x:0,y:0,zoom:1,drag:false,sx:0,sy:0,ox:0,oy:0};
+
+function drawCertificate(){
+  if(!bg.complete) return;
+  ctx.clearRect(0,0,1536,1024);
+  ctx.drawImage(bg,0,0,1536,1024);
+
+  // Student photo area (inside the existing gold frame).
+  if(cropped){
+    const px=1213, py=218, pw=237, ph=292;
+    ctx.save();
+    const r=9;
+    ctx.beginPath();
+    ctx.roundRect(px,py,pw,ph,r);
+    ctx.clip();
+    ctx.drawImage(cropped,px,py,pw,ph);
+    ctx.restore();
+  }
+
+  ctx.fillStyle="#123d8d";
+  ctx.textBaseline="middle";
+  ctx.textAlign="left";
+  const vals=[
+    [document.getElementById("name").value,610,566],
+    [document.getElementById("classDiv").value,625,626],
+    [document.getElementById("item").value,610,686],
+    [document.getElementById("place").value,610,746]
+  ];
+  for(const [v,x,y] of vals){
+    ctx.font='bold 28px "Noto Sans Malayalam","Nirmala UI",Arial,sans-serif';
+    ctx.fillText(v||"",x,y);
+  }
+}
+bg.onload=drawCertificate;
+
+["name","classDiv","item","place"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",drawCertificate);
+});
+
+const photoInput=document.getElementById("photoInput");
+const cropModal=document.getElementById("cropModal");
+const cropCanvas=document.getElementById("cropCanvas");
+const cctx=cropCanvas.getContext("2d");
+const zoom=document.getElementById("zoom");
+
+function openCrop(){
+  if(!sourceImg){ alert("ആദ്യം ഒരു ഫോട്ടോ തിരഞ്ഞെടുക്കുക."); return; }
+  cropState={x:0,y:0,zoom:1,drag:false,sx:0,sy:0,ox:0,oy:0};
+  zoom.value=1;
+  cropModal.classList.add("show");
+  renderCrop();
+}
+photoInput.addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const im=new Image();
+  im.onload=()=>{sourceImg=im;openCrop();};
+  im.src=URL.createObjectURL(f);
+});
+document.getElementById("cropAgainBtn").onclick=openCrop;
+
+function renderCrop(){
+  const W=cropCanvas.width,H=cropCanvas.height;
+  cctx.clearRect(0,0,W,H);
+  cctx.fillStyle="#222";cctx.fillRect(0,0,W,H);
+  const scale=Math.max(W/sourceImg.width,H/sourceImg.height)*cropState.zoom;
+  const dw=sourceImg.width*scale,dh=sourceImg.height*scale;
+  const dx=(W-dw)/2+cropState.x,dy=(H-dh)/2+cropState.y;
+  cctx.drawImage(sourceImg,dx,dy,dw,dh);
+  // 4:5 portrait crop guide
+  const cw=330,ch=360,cx=(W-cw)/2,cy=(H-ch)/2;
+  cctx.strokeStyle="#fff";cctx.lineWidth=3;cctx.strokeRect(cx,cy,cw,ch);
+}
+zoom.addEventListener("input",()=>{cropState.zoom=+zoom.value;renderCrop()});
+
+function pointerPos(e){
+  const r=cropCanvas.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*cropCanvas.width/r.width,y:(e.clientY-r.top)*cropCanvas.height/r.height};
+}
+cropCanvas.addEventListener("pointerdown",e=>{
+  const p=pointerPos(e);cropState.drag=true;cropState.sx=p.x;cropState.sy=p.y;cropState.ox=cropState.x;cropState.oy=cropState.y;cropCanvas.setPointerCapture(e.pointerId);
+});
+cropCanvas.addEventListener("pointermove",e=>{
+  if(!cropState.drag)return;const p=pointerPos(e);
+  cropState.x=cropState.ox+p.x-cropState.sx;cropState.y=cropState.oy+p.y-cropState.sy;renderCrop();
+});
+cropCanvas.addEventListener("pointerup",()=>cropState.drag=false);
+
+document.getElementById("cancelCrop").onclick=()=>cropModal.classList.remove("show");
+document.getElementById("applyCrop").onclick=()=>{
+  const out=document.createElement("canvas"),W=237,H=292;
+  out.width=W;out.height=H;const o=out.getContext("2d");
+  const scale=Math.max(cropCanvas.width/sourceImg.width,cropCanvas.height/sourceImg.height)*cropState.zoom;
+  const dw=sourceImg.width*scale,dh=sourceImg.height*scale;
+  const dx=(cropCanvas.width-dw)/2+cropState.x,dy=(cropCanvas.height-dh)/2+cropState.y;
+  const cw=330,ch=360,cx=(cropCanvas.width-cw)/2,cy=(cropCanvas.height-ch)/2;
+  o.drawImage(cropCanvas,cx,cy,cw,ch,0,0,W,H);
+  cropped=out;cropModal.classList.remove("show");drawCertificate();
+};
+
+document.getElementById("downloadBtn").onclick=()=>{
+  drawCertificate();
+  const a=document.createElement("a");
+  const nm=(document.getElementById("name").value||"student").replace(/[^\p{L}\p{N}_-]+/gu,"_");
+  a.download="Kalankam_2026_Certificate_"+nm+".png";
+  a.href=cert.toDataURL("image/png");
+  a.click();
+};
+</script>
+</body>
+</html>
